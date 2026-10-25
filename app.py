@@ -1,5 +1,6 @@
 """INTENTIONALLY VULNERABLE demo app. For scanner testing only."""
 import hashlib
+import ast
 import os
 import pickle
 import sqlite3
@@ -12,10 +13,10 @@ from flask import Flask, request
 app = Flask(__name__)
 
 # BUG 1 - Hardcoded secrets (CWE-798). All values are FAKE.
-SECRET_KEY = "super-secret-key-12345"
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
 DB_PASSWORD = "admin123"
-AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
-AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
 
 def get_db():
@@ -48,8 +49,8 @@ def ping():
 
 @app.route("/calc")
 def calc():
-    # BUG 5 - Code injection via eval (CWE-95)
-    return str(eval(request.args.get("expr", "1+1")))
+    # BUG 5 - Code injection via ast.literal_eval(CWE-95)
+    return str(ast.literal_eval(request.args.get("expr", "1+1")))
 
 
 @app.route("/load", methods=["POST"])
@@ -60,8 +61,8 @@ def load():
 
 @app.route("/config", methods=["POST"])
 def config():
-    # BUG 7 - Unsafe yaml.load (CWE-502)
-    return str(yaml.load(request.data))
+    # BUG 7 - Unsafe yaml.safe_load(CWE-502)
+    return str(yaml.safe_load(request.data))
 
 
 @app.route("/file")
@@ -76,7 +77,7 @@ def read_file():
 def fetch():
     # BUG 9 - SSRF (CWE-918) and TLS check turned off (CWE-295)
     url = request.args.get("url", "")
-    return requests.get(url, verify=False).text
+    return requests.get(url, verify=False, timeout=30).text
 
 
 if __name__ == "__main__":
